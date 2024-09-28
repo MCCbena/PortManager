@@ -1,0 +1,3 @@
+/home/shuta/CLionProjects/PortManager/cmake-build-debug/CMakeFiles/PortManager.dir
+/home/shuta/CLionProjects/PortManager/cmake-build-debug/CMakeFiles/edit_cache.dir
+/home/shuta/CLionProjects/PortManager/cmake-build-debug/CMakeFiles/rebuild_cache.dir
