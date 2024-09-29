@@ -218,6 +218,7 @@ int rule(struct Response response, int wsock, int rsock){
                 char* command = calloc(256, 1);
                 sprintf(command, "SELECT * FROM %s;", table);
                 struct Response_sql responseSql = sendCommandHasResponse(conn, command);
+                free(command);
                 //レスポンスの受信
                 if(responseSql.error == 0){
                     json_object *main = json_object_new_array();
@@ -238,14 +239,148 @@ int rule(struct Response response, int wsock, int rsock){
                     easySender("HTTP/1.1 200 OK", NULL, bodyObject, "application/json;charset=UTF-8", wsock);
                     json_object_put(main);
                     destroyBodyObject(bodyObject);
+                    mysql_close(conn);
                 }else{
                     struct BodyObject bodyObject = makeBodyObject(NULL, 0);
                     easySender("HTTP/1.1 500 Bad Gateway", NULL, bodyObject, "application/json;charset=UTF-8", wsock);
                     destroyBodyObject(bodyObject);
                 }
+
             }
         }
         return 1;
+    }
+    if(strcmp(getValueFromHashMap(&response.header, "path"), "/applyPorts") == 0){
+        printf("%s\n", response.body);
+        /*
+         * 0=エラーなし
+         * 1=SQLコマンドの実行エラー
+         * 2=名前またはポートの重複があった
+         */
+        char error = 0;
+
+        json_object *json_server;
+        json_object *json_name;
+        json_object *json_ipaddress;
+        json_object *json_select_port;
+        json_object *json_protocol;
+        json_object *json_change;
+
+        const char *server;
+        const char *name;
+        const char *ipaddress;
+        int         select_port;
+        const char *protocol;
+        json_bool   change;
+
+        MYSQL *conn = getConnection();
+        char *command1 = calloc(256, 1);
+        char *command2 = calloc(256, 1);
+
+        json_object *jsonObject = json_tokener_parse(response.body);
+
+        json_object_object_get_ex(jsonObject, "server",     &json_server);
+        json_object_object_get_ex(jsonObject, "name",       &json_name);
+        json_object_object_get_ex(jsonObject, "ipaddress",  &json_ipaddress);
+        json_object_object_get_ex(jsonObject, "port",       &json_select_port);
+        json_object_object_get_ex(jsonObject, "protocol",   &json_protocol);
+        json_object_object_get_ex(jsonObject, "change",     &json_change);
+
+        server =        json_object_get_string(json_server);
+        name =          json_object_get_string(json_name);
+        ipaddress =     json_object_get_string(json_ipaddress);
+        select_port =   json_object_get_int(json_select_port);
+        protocol =      json_object_get_string(json_protocol);
+        change =        json_object_get_boolean(json_change);
+
+        //新規か編集かでコマンドを変える
+        if(change) {
+            sprintf(command1,
+                    "SELECT * FROM %s WHERE PORT=%d;",
+                    server, select_port);
+            sprintf(command2, //ポートの編集だった場合、UPDATEコマンドを実行
+                    "UPDATE %s SET IPADDRESS=\"%s\", PORT=%d, PROTOCOL=\"%s\" WHERE NAME = \"%s\";",
+                    server, ipaddress, select_port, protocol, name);
+        }else{
+            sprintf(command1,
+                    "SELECT * FROM %s WHERE NAME=\"%s\" OR PORT=%d;",
+                    server, name, select_port);
+            sprintf(command2, //ポートの新規作成だった場合、INSERTを実行
+                    "INSERT INTO %s VALUES(\"%s\", \"%s\", %d, \"%s\");",
+                    server, name, ipaddress, select_port, protocol);
+        }
+
+        //SELECTで重複チェック
+        struct Response_sql responseSql = sendCommandHasResponse(conn, command1);
+        if(responseSql.error != 1) {
+            //SELECTコマンドの実行が正常に完了した場合
+            if (mysql_fetch_row(responseSql.response) == NULL) {
+                //重複がない場合
+                if(sendCommand(conn, command2)==-1) error = 1;
+            } else error = 2;
+            mysql_close(conn);
+        } else error = 1;
+
+        //実行結果の返信
+        char* msg = calloc(2, 1);
+        msg[0] = (char)(error+48);//0はASCIIで48番であるため、エラー内容+48で数字の文字コードが割り出せる。
+        struct BodyObject bodyObject = makeBodyObject(msg, 1);
+        easySender("HTTP/1.1 200 OK", NULL, bodyObject, "text/plain", wsock);
+
+        //メモリ開放
+        destroyBodyObject(bodyObject);
+        free(command1);
+        free(command2);
+        free(msg);
+        json_object_put(jsonObject);
+
+        return 1;
+    }
+    if(strcmp(getValueFromHashMap(&response.header, "path"), "/deletePorts") == 0){
+        /*
+         * 0=エラーなし
+         * 1=SQL実行時にエラー発生
+         */
+        int error = 0;
+
+        json_object *jsonObject = json_tokener_parse(response.body);
+
+        json_object *json_server;
+        json_object *json_name;
+
+        const char* server;
+        const char* name;
+
+        json_object_object_get_ex(jsonObject, "server", &json_server);
+        json_object_object_get_ex(jsonObject, "name",   &json_name);
+
+        char* command = calloc(256, 1);
+        MYSQL *conn = getConnection();
+
+        server  = json_object_get_string(json_server);
+        name    = json_object_get_string(json_name);
+
+        //コマンドの生成
+        sprintf(command,
+                "DELETE FROM %s WHERE NAME = \"%s\";",
+                server, name);
+
+        //SQLの実行とエラー処理
+        if(sendCommand(conn, command)==-1) error = 1;
+        else mysql_close(conn);
+
+        char* method = calloc(64, 1);
+        if(!error) memcpy(method, "HTTP/1.1 200 GET", 16);
+        else memcpy(method, "HTTP/1.1 500 Internal Server Error", 34);
+
+        //レスポンス作成・送信
+        struct BodyObject bodyObject = makeBodyObject(NULL, 0);
+        easySender(method, NULL, bodyObject, method, wsock);
+
+        //メモリ開放
+        free(command);
+        destroyBodyObject(bodyObject);
+        json_object_put(jsonObject);
     }
 
     //ルールがない場合、自動的にファイルから取得

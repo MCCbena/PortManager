@@ -21,21 +21,6 @@ body{
     cursor: pointer;
 }
 
-#create-btn {
-    display: block;
-    text-align: center;
-    vertical-align: middle;
-    text-decoration: none;
-    width: 35px;
-    padding: 1rem 4rem;
-    font-weight: bold;
-    color: #27acd9;
-    transition: 0.5s;
-    border: 2px solid #27acd9;
+#portList tr td #delete-btn {
     cursor: pointer;
-}
-#create-btn:hover {
-    color: #fff;
-    background: #27acd9;
-
 }

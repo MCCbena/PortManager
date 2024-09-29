@@ -1,0 +1,229 @@
+#add-setting-btn {
+    display: block;
+    text-align: center;
+    vertical-align: middle;
+    text-decoration: none;
+    width: 35px;
+    padding: 1rem 4rem;
+    font-weight: bold;
+    color: #27acd9;
+    transition: 0.5s;
+    border: 2px solid #27acd9;
+    cursor: pointer;
+    position: fixed;
+    top: 200px;
+}
+#add-setting-btn:hover {
+    color: #fff;
+    background: #27acd9;
+
+}
+
+/* モーダルと背景の指定 */
+.modal{
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    text-align: center;
+    background: rgba(0,0,0,50%);
+    padding: 40px 20px;
+    overflow: auto;
+    opacity: 0;
+    visibility: hidden;
+    transition: .3s;
+    box-sizing: border-box;
+}
+
+/* モーダルの擬似要素の指定 */
+.modal:before{
+    content: "";
+    display: inline-block;
+    vertical-align: middle;
+    height: 100%;
+    margin-left: -0.2em;
+}
+
+/* クラスが追加された時の指定 */
+.modal.is-active{
+    opacity: 1;
+    visibility: visible;
+}
+
+/* モーダル内側の指定 */
+.modal-container{
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 900px;
+    width: 100%;
+}
+
+/* モーダルを閉じるボタンの指定 */
+.modal-close{
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    top: -20px;
+    right: -20px;
+    width: 40px;
+    height: 40px;
+    color: #fff;
+    background: #000;
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+/* モーダルのコンテンツ部分の指定 */
+.modal-content{
+    background: #fff;
+    text-align: left;
+    line-height: 1.8;
+    padding: 20px;
+}
+
+/* モーダルのコンテンツ部分のテキストの指定 */
+.modal-content p{
+    margin: 1em 0;
+}
+
+.title-add-port{
+    font-weight: bold;
+    font-size: 20px;
+}
+
+#port-name-field{
+    width: 50%; /*親要素いっぱい広げる*/
+    padding: 10px 15px; /*ボックスを大きくする*/
+    font-size: 16px;
+    border-radius: 3px; /*ボックス角の丸み*/
+    border: 2px solid #ddd; /*枠線*/
+    box-sizing: border-box; /*横幅の解釈をpadding, borderまでとする*/
+}
+
+.port#name-field:focus {
+    transition: 0.2s;
+    border: 2px solid #27acd9;
+    z-index: 10;
+    outline: 0;
+}
+.name-title{
+    font-weight: bold;
+    font-size: 18px;
+    color: #8B8B8B;
+}
+
+#ipaddress-field{
+    width: 50%; /*親要素いっぱい広げる*/
+    padding: 10px 15px; /*ボックスを大きくする*/
+    font-size: 16px;
+    border-radius: 3px; /*ボックス角の丸み*/
+    border: 2px solid #ddd; /*枠線*/
+    box-sizing: border-box; /*横幅の解釈をpadding, borderまでとする*/
+}
+
+#ipaddress-field:focus {
+    transition: 0.2s;
+    border: 2px solid #27acd9;
+    z-index: 10;
+    outline: 0;
+}
+.ipaddress-title{
+    font-weight: bold;
+    font-size: 18px;
+    color: #8B8B8B;
+}
+
+#port-field{
+    width: 16%; /*親要素いっぱい広げる*/
+    padding: 10px 15px; /*ボックスを大きくする*/
+    font-size: 16px;
+    border-radius: 3px; /*ボックス角の丸み*/
+    border: 2px solid #ddd; /*枠線*/
+    box-sizing: border-box; /*横幅の解釈をpadding, borderまでとする*/
+}
+
+#port-field:focus {
+    transition: 0.2s;
+    border: 2px solid #27acd9;
+    z-index: 10;
+    outline: 0;
+}
+.port-title{
+    font-weight: bold;
+    font-size: 18px;
+    color: #8B8B8B;
+}
+#protocol-field{
+    width: 11%; /*親要素いっぱい広げる*/
+    padding: 10px 15px; /*ボックスを大きくする*/
+    font-size: 16px;
+    border-radius: 3px; /*ボックス角の丸み*/
+    border: 2px solid #ddd; /*枠線*/
+    box-sizing: border-box; /*横幅の解釈をpadding, borderまでとする*/
+}
+
+#protocol-field:focus {
+    transition: 0.2s;
+    border: 2px solid #27acd9;
+    z-index: 10;
+    outline: 0;
+}
+.protocol-title{
+    font-weight: bold;
+    font-size: 18px;
+    color: #8B8B8B;
+}
+
+.modal-add-field{
+    display: flex;
+    justify-content: space-between;
+
+    margin-bottom: 50px;
+}
+
+#send_port_setting {
+    display: block;
+    text-align: center;
+    vertical-align: middle;
+    text-decoration: none;
+    width: 35px;
+    padding: 10px 20px;
+    font-weight: bold;
+    color: #27acd9;
+    transition: 0.5s;
+    border: 2px solid #27acd9;
+    cursor: default;
+    position: relative;
+    justify-content: space-between;
+    bottom: 10px;
+
+}
+#send_port_setting:hover {
+    color: #fff;
+    background: #27acd9;
+}
+
+#setting-commit-status-dialog{
+    box-shadow:0 4px 16px rgba(0,0,0,100%);
+    border: 2px solid #27acd9;
+    border-radius: 10px;
+}
+
+#setting-commit-status-dialog-btn{
+    border-radius: 10px;
+    transition: 0.5s;
+    border: 2px solid #fff;
+    padding: 10px 30px;
+    font-weight: bold;
+    margin-top: 20px;
+    margin-bottom: 5px;
+    outline: none;
+}
+
+#setting-commit-status-dialog-btn:hover{
+    color: #fff;
+    background: #27acd9;
+}
