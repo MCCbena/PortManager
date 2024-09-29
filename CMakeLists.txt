@@ -5,4 +5,7 @@ set(CMAKE_C_STANDARD 11)
 
 add_executable(PortManager main.c
         ResponseHandler.h
+        Sender.h
+        DatabaseUtil.h
 )
+target_link_libraries(PortManager mariadb json-c)

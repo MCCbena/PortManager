@@ -6,6 +6,17 @@
 #define PORTMANAGER_RESPONSEHANDLER_H
 
 #include <string.h>
+#include <stdlib.h>
+#include <sys/socket.h>
+#include <dirent.h>
+#include <json-c/json.h>
+#include <mariadb/mysql.h>
+#include "Map.h"
+#include "Sender.h"
+#include "DatabaseUtil.h"
+
+#define ROOT "/home/shuta/CLionProjects/PortManager/www"
+
 
 //メソッドの定義
 void methods(int id, char* dest){
@@ -23,22 +34,22 @@ void methods(int id, char* dest){
     memcpy(dest, method[id], 8);
 }
 
-#include <string.h>
-#include <stdlib.h>
-#include <sys/socket.h>
-#include "Map.h"
-
 struct Response getResponse(char*);
+int rule(struct Response, int, int);
 int handler(struct Response, int, int);
+struct BodyObject rootFileReader(char*);
+char* detectionContentType(char*);
+
 
 struct Response{
     char method[8];
-    HashMap hashMap;
+    HashMap header;
+    char* body;
 };
 
 struct Response getResponse(char* response_row){
     struct Response response;
-    response.hashMap = *newHashMap(1024);
+    response.header = *newHashMap(1024);
 
     char* index_start; //最初の文字が格納されたメモリアドレス
     char* index_end; //最後が格納されたメモリアドレス
@@ -62,7 +73,7 @@ struct Response getResponse(char* response_row){
             &response_row[strlen(response.method)+1], //リクエストメソッドを除いた、パスから最初に始まる文字列を取得
             index_end-index_start //メモリアドレスを計算してパスのみを取得
             );
-    insertToHashMap(&response.hashMap, "path", path);
+    insertToHashMap(&response.header, "path", path);
 
     index_end = strstr(index_end, "\r\n");
     while (strncmp(index_end, "\r\n\r\n", 4) != 0){
@@ -79,38 +90,204 @@ struct Response getResponse(char* response_row){
         index_end = strstr(index_end, "\r\n");
         memcpy(value, index_start, index_end-index_start);
 
-        insertToHashMap(&response.hashMap, key, value);
-
+        insertToHashMap(&response.header, key, value);
         free(key);
         free(value);
     }
+    char* content_length_str = getValueFromHashMap(&response.header, "Content-Length");
+    if(content_length_str!=NULL) {
+        int content_length = atoi(content_length_str);
+        response.body = calloc(content_length + 1, 1);
+        memcpy(response.body, index_end + 4, content_length);
+    } else response.body=NULL;
+    //メモリ開放
     free(path);
+
     return response;
 }
 
-int handler(struct Response response, int wsock, int rsock){
+/*
+ * 注1:パスの最大長は絶対パス含め1024バイトに制限されます。
+ * 注2:ファイルが開けない場合、NULLを返します。ディレクトリを開こうとした場合は、size=1のNULLを返します。
+ */
+struct BodyObject rootFileReader(char* path){
+    //変数宣言
+    FILE *fp;
+    char* full_path = malloc(1024);
+    char* file_data;
+    unsigned int size;
+
+    //絶対パス化
+    sprintf(full_path, "%s%s", ROOT, path);
+
+    //ディレクトリである場合
+    DIR *dir = opendir(full_path);
+    if(dir){
+        return makeBodyObject(NULL, 1);
+    }
+
+    fp = fopen(full_path, "r");
+    free(full_path);//メモリ開放
+    if(fp==NULL){//ファイルが存在しなかった場合の処理
+        return makeBodyObject(NULL, 0);
+    }
+    //ファイルのサイズ取得
+    fseek(fp, 0, SEEK_END);
+    fgetpos(fp, (fpos_t *) &size);
+    fseek(fp, 0, SEEK_SET);//ファイルのサイズの取得が完了したら、ポインタをもとに戻す
+    //ファイル読み込み
+    file_data = calloc(1, size+1);
+    fread(file_data, 1, size, fp);
+    //ファイルクローズ
+    fclose(fp);
+    //構造体を作成
+    return makeBodyObject(file_data, size);
+}
+
+//Content-Typeを自動的に検出します。検出できない場合は、信頼できない値を返します。
+char* detectionContentType(char* path){
+    char* file_name = strdup(path);
+    char* extension;
+    char* temp;
+
+    //ファイル名を特定
+    while (1){
+        temp = strstr(file_name+1, "/");
+        if(temp == NULL){
+            break;
+        }
+        file_name = strdup(temp);
+    }
+    //拡張子を特定
+    extension = strstr(file_name+1, ".");
+    //メモリ開放
+    free(temp);
+
+    if(extension==NULL){
+        printf("\x1b[36m[WARN]detectionContentTypeの回答は保証できません（拡張子が見つかりませんでした）。\x1b[39m\n");
+        return "text/plain";
+    } else extension++;
+    if(strcmp(extension, "html") == 0){
+        return "text/html";
+    }
+    if(strcmp(extension, "css") == 0){
+        return "text/css";
+    }
+    if(strcmp(extension, "js") == 0){
+        return "text/javascript";
+    }
+    if(strcmp(extension, "png") == 0){
+        return "image/png";
+    }
+
+    //該当しない場合
+    printf("\x1b[36m[WARN]detectionContentTypeの回答は保証できません（Content-Typeを特定できませんでした-%s）。\x1b[39m\n", extension);
+
+    return strcat("text/", extension);
+}
+
+int rule(struct Response response, int wsock, int rsock){
+    printf("%s\n", getValueFromHashMap(&response.header, "path"));
     //リダイレクトの設定
-
-    if(strcmp(getValueFromHashMap(&response.hashMap, "path"), "/") == 0){
-        send(wsock, "HTTP/1.1 302 Found\r\n", 20, 0);
-        send(wsock, "Location: /index\r\n", 18, 0);
-        send(wsock, "Content-Type: text/html\r\n", 25, 0);
-        send(wsock, "Connection: close\r\n", 19, 0);
-        send(wsock, "\r\n", 2, 0); // ヘッダとボディの区切り
+    if(strcmp(getValueFromHashMap(&response.header, "path"), "/") == 0){
+        char** append_headers = makeDataObject(2, 32);
+        append_headers[0] = "Location: /index";
+        append_headers[1] = "Connection: close";
+        struct BodyObject bodyObject = makeBodyObject(NULL, 0);//bodyはNULL
+        easySender("HTTP/1.1 302 Found", append_headers, bodyObject, "text/plain", wsock);
+        destroyBodyObject(bodyObject);
+        return 1;
     }
 
-    if(strcmp(getValueFromHashMap(&response.hashMap, "path"), "/index") == 0){
-        // レスポンスヘッダの送信
-        send(wsock, "HTTP/1.1 200 OK\r\n", 17, 0);
-        send(wsock, "Content-Type: text/html\r\n", 25, 0);
-        send(wsock, "Content-Length: 13\r\n", 20, 0);
-        send(wsock, "\r\n", 2, 0); // ヘッダとボディを区切る空行
-        // レスポンスボディの送信
-        send(wsock, "Hello, World!\r\n", 15, 0);
+    if(strcmp(getValueFromHashMap(&response.header, "path"), "/index") == 0){
+        // レスポンスの送信
+        struct BodyObject html = rootFileReader("/index.html");
+        easySender("HTTP/1.1 200 OK", NULL, html, "text/html", wsock);
+        destroyBodyObject(html);
+        return 1;
     }
-    printf("%s\n", getValueFromHashMap(&response.hashMap, "path"));
 
-    destroyHashMap(&response.hashMap);
+    if(strcmp(getValueFromHashMap(&response.header, "path"), "/ports") == 0){
+        json_object *jsonObject = json_tokener_parse(response.body);
+        json_object_object_foreach(jsonObject, key, val){
+            if(strcmp(key, "serverID")==0){
+                const char* table = json_object_get_string(val);
+                //SQLとの接続を確立
+                MYSQL *conn = getConnection();
+                //コマンドを作成・送信する
+                char* command = calloc(256, 1);
+                sprintf(command, "SELECT * FROM %s;", table);
+                struct Response_sql responseSql = sendCommandHasResponse(conn, command);
+                //レスポンスの受信
+                if(responseSql.error == 0){
+                    json_object *main = json_object_new_array();
+                    MYSQL_ROW row;
+                    while ((row = mysql_fetch_row(responseSql.response)) != NULL){
+                        json_object *data = json_object_new_object();
+
+                        json_object_object_add(data, "name", json_object_new_string(row[0]));
+                        json_object_object_add(data, "ipaddress", json_object_new_string(row[1]));
+                        json_object_object_add(data, "port", json_object_new_int(atoi(row[2])));
+                        json_object_object_add(data, "protocol", json_object_new_string(row[3]));
+
+                        json_object_array_add(main, data);
+
+                    }
+                    const char* json_string = json_object_to_json_string(main);
+                    struct BodyObject bodyObject = makeBodyObject((char*)json_string, byteSize(json_string));
+                    easySender("HTTP/1.1 200 OK", NULL, bodyObject, "application/json;charset=UTF-8", wsock);
+                    json_object_put(main);
+                    destroyBodyObject(bodyObject);
+                }else{
+                    struct BodyObject bodyObject = makeBodyObject(NULL, 0);
+                    easySender("HTTP/1.1 500 Bad Gateway", NULL, bodyObject, "application/json;charset=UTF-8", wsock);
+                    destroyBodyObject(bodyObject);
+                }
+            }
+        }
+        return 1;
+    }
+
+    //ルールがない場合、自動的にファイルから取得
+    struct BodyObject html = rootFileReader(getValueFromHashMap(&response.header, "path"));
+    if(html.content != NULL) {
+        char* content_type = detectionContentType(getValueFromHashMap(&response.header, "path"));
+        easySender("HTTP/1.1 200 OK", NULL, html, content_type, wsock);
+        destroyBodyObject(html);
+        return 200;
+    }else {
+        //ファイルが存在しない場合、エラー内容を選定
+        if(html.size == 1) return 403;
+        return 404;
+    }
+}
+
+int handler(struct Response response, int wsock, int rsock){
+
+    char* text = malloc(32);
+    char* method = malloc(32);
+    switch (rule(response, wsock, rsock)) {
+        case 404:
+            memcpy(method, "HTTP/1.1 404 NOT FOUND\0", 23);
+            memcpy(text, "404 not found\0", 14);
+            break;
+        case 403:
+            memcpy(method, "HTTP/1.1 403 FORBIDDEN\0", 23);
+            memcpy(text, "403 forbidden\0", 14);
+            break;
+    }
+    if(text != NULL) {
+        struct BodyObject bodyObject;
+        bodyObject = makeBodyObject(text, byteSize(text));
+        easySender(method, NULL, bodyObject, "text/plain", wsock);
+
+        //メモリ開放
+        destroyBodyObject(bodyObject);
+    }
+    free(text);
+    free(method);
+
+    destroyHashMap(&response.header);
     return 0;
 }
 

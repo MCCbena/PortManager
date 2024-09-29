@@ -65,6 +65,7 @@ build CMakeFiles/PortManager.dir/main.c.o: C_COMPILER__PortManager_unscanned_Deb
 
 build PortManager: C_EXECUTABLE_LINKER__PortManager_Debug CMakeFiles/PortManager.dir/main.c.o
   FLAGS = -g
+  LINK_LIBRARIES = -lmariadb  -ljson-c
   OBJECT_DIR = CMakeFiles/PortManager.dir
   POST_BUILD = :
   PRE_LINK = :

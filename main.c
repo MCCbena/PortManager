@@ -19,7 +19,7 @@ int main(void) {
 
     //ソケットの設定
     addr.sin_family      = AF_INET;
-    addr.sin_port        = htons(8000);
+    addr.sin_port        = htons(8080);
     addr.sin_addr.s_addr = INADDR_ANY;
 
     ret = bind(rsock, (struct sockaddr *)&addr, sizeof(addr));
@@ -38,17 +38,15 @@ int main(void) {
         wsock = accept(rsock, (struct sockaddr *) &client, &len);
 
         //レスポンスの格納
-        char response_get[1024];
+        char *response_get = calloc(1, 1024);
         recv(wsock, response_get, 1024, 0);
         struct Response response = getResponse(response_get);
         handler(response, wsock, rsock);
 
         /* close TCP session */
         shutdown(wsock, SHUT_RDWR);
-        shutdown(rsock, SHUT_RDWR);
-        exit(0);
+        //exit(0);
     }
-
-
+    shutdown(rsock, SHUT_RDWR);
     return 0;
 }
