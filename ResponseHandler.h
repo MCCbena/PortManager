@@ -141,7 +141,9 @@ struct BodyObject rootFileReader(char* path){
     //ファイルクローズ
     fclose(fp);
     //構造体を作成
-    return makeBodyObject(file_data, size);
+    struct BodyObject bodyObject = makeBodyObject(file_data, size);
+    free(file_data);
+    return bodyObject;
 }
 
 //Content-Typeを自動的に検出します。検出できない場合は、信頼できない値を返します。
@@ -157,11 +159,11 @@ char* detectionContentType(char* path){
             break;
         }
         file_name = strdup(temp);
+        //メモリ開放
+        free(temp);
     }
     //拡張子を特定
     extension = strstr(file_name+1, ".");
-    //メモリ開放
-    free(temp);
 
     if(extension==NULL){
         printf("\x1b[36m[WARN]detectionContentTypeの回答は保証できません（拡張子が見つかりませんでした）。\x1b[39m\n");
@@ -183,7 +185,10 @@ char* detectionContentType(char* path){
     //該当しない場合
     printf("\x1b[36m[WARN]detectionContentTypeの回答は保証できません（Content-Typeを特定できませんでした-%s）。\x1b[39m\n", extension);
 
-    return strcat("text/", extension);
+    free(file_name);
+    char* concat = strcat("text/", extension);
+    free(extension);
+    return concat;
 }
 
 int rule(struct Response response, int wsock, int rsock){
@@ -195,7 +200,7 @@ int rule(struct Response response, int wsock, int rsock){
         append_headers[1] = "Connection: close";
         struct BodyObject bodyObject = makeBodyObject(NULL, 0);//bodyはNULL
         easySender("HTTP/1.1 302 Found", append_headers, bodyObject, "text/plain", wsock);
-        destroyBodyObject(bodyObject);
+        destroyBodyObject(&bodyObject);
         return 1;
     }
 
@@ -203,7 +208,7 @@ int rule(struct Response response, int wsock, int rsock){
         // レスポンスの送信
         struct BodyObject html = rootFileReader("/index.html");
         easySender("HTTP/1.1 200 OK", NULL, html, "text/html", wsock);
-        destroyBodyObject(html);
+        destroyBodyObject(&html);
         return 1;
     }
 
@@ -238,16 +243,17 @@ int rule(struct Response response, int wsock, int rsock){
                     struct BodyObject bodyObject = makeBodyObject((char*)json_string, byteSize(json_string));
                     easySender("HTTP/1.1 200 OK", NULL, bodyObject, "application/json;charset=UTF-8", wsock);
                     json_object_put(main);
-                    destroyBodyObject(bodyObject);
-                    mysql_close(conn);
+                    destroyBodyObject(&bodyObject);
+                    mysql_free_result(responseSql.response);
                 }else{
                     struct BodyObject bodyObject = makeBodyObject(NULL, 0);
                     easySender("HTTP/1.1 500 Bad Gateway", NULL, bodyObject, "application/json;charset=UTF-8", wsock);
-                    destroyBodyObject(bodyObject);
+                    destroyBodyObject(&bodyObject);
                 }
-
+                mysql_close(conn);
             }
         }
+        json_object_put(jsonObject);
         return 1;
     }
     if(strcmp(getValueFromHashMap(&response.header, "path"), "/applyPorts") == 0){
@@ -296,15 +302,15 @@ int rule(struct Response response, int wsock, int rsock){
         //新規か編集かでコマンドを変える
         if(change) {
             sprintf(command1,
-                    "SELECT * FROM %s WHERE PORT=%d;",
-                    server, select_port);
+                    "SELECT * FROM %s WHERE NAME!=\"%s\" AND PORT=%d AND PROTOCOL=\"%s\";",
+                    server, name, select_port, protocol);
             sprintf(command2, //ポートの編集だった場合、UPDATEコマンドを実行
                     "UPDATE %s SET IPADDRESS=\"%s\", PORT=%d, PROTOCOL=\"%s\" WHERE NAME = \"%s\";",
                     server, ipaddress, select_port, protocol, name);
         }else{
             sprintf(command1,
-                    "SELECT * FROM %s WHERE NAME=\"%s\" OR PORT=%d;",
-                    server, name, select_port);
+                    "SELECT * FROM %s WHERE NAME=\"%s\" OR (PORT=%d AND PROTOCOL=\"%s\");",
+                    server, name, select_port, protocol);
             sprintf(command2, //ポートの新規作成だった場合、INSERTを実行
                     "INSERT INTO %s VALUES(\"%s\", \"%s\", %d, \"%s\");",
                     server, name, ipaddress, select_port, protocol);
@@ -328,11 +334,12 @@ int rule(struct Response response, int wsock, int rsock){
         easySender("HTTP/1.1 200 OK", NULL, bodyObject, "text/plain", wsock);
 
         //メモリ開放
-        destroyBodyObject(bodyObject);
+        destroyBodyObject(&bodyObject);
         free(command1);
         free(command2);
         free(msg);
         json_object_put(jsonObject);
+        mysql_free_result(responseSql.response);
 
         return 1;
     }
@@ -379,7 +386,7 @@ int rule(struct Response response, int wsock, int rsock){
 
         //メモリ開放
         free(command);
-        destroyBodyObject(bodyObject);
+        destroyBodyObject(&bodyObject);
         json_object_put(jsonObject);
     }
 
@@ -388,18 +395,24 @@ int rule(struct Response response, int wsock, int rsock){
     if(html.content != NULL) {
         char* content_type = detectionContentType(getValueFromHashMap(&response.header, "path"));
         easySender("HTTP/1.1 200 OK", NULL, html, content_type, wsock);
-        destroyBodyObject(html);
+
+        destroyBodyObject(&html);
+        free(content_type);
         return 200;
     }else {
         //ファイルが存在しない場合、エラー内容を選定
-        if(html.size == 1) return 403;
+        if(html.size == 1){
+            destroyBodyObject(&html);
+            return 403;
+        }
+        destroyBodyObject(&html);
         return 404;
     }
 }
 
 int handler(struct Response response, int wsock, int rsock){
 
-    char* text = malloc(32);
+    char* text = malloc(64);
     char* method = malloc(32);
     switch (rule(response, wsock, rsock)) {
         case 404:
@@ -417,7 +430,7 @@ int handler(struct Response response, int wsock, int rsock){
         easySender(method, NULL, bodyObject, "text/plain", wsock);
 
         //メモリ開放
-        destroyBodyObject(bodyObject);
+        destroyBodyObject(&bodyObject);
     }
     free(text);
     free(method);

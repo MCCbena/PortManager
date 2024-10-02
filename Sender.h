@@ -16,7 +16,7 @@ struct BodyObject;
 void easySender(char*, char**, struct BodyObject, char*, int);
 char** makeDataObject(int, int);
 int byteSize(const char*);
-void destroyBodyObject(struct BodyObject);
+void destroyBodyObject(struct BodyObject*);
 struct BodyObject makeBodyObject(char*, unsigned int);
 
 struct BodyObject{
@@ -24,8 +24,8 @@ struct BodyObject{
     unsigned int size;
 };
 
-void destroyBodyObject(struct BodyObject bodyObject){
-    free(bodyObject.content);
+void destroyBodyObject(struct BodyObject *bodyObject){
+    free(bodyObject->content);
 }
 
 /*

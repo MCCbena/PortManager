@@ -43,6 +43,10 @@ int main(void) {
         struct Response response = getResponse(response_get);
         handler(response, wsock, rsock);
 
+        free(response_get);
+        free(response.body);
+        destroyHashMap(&response.header);
+
         /* close TCP session */
         shutdown(wsock, SHUT_RDWR);
         //exit(0);

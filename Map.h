@@ -73,12 +73,12 @@ char *getValueFromHashMap(const HashMap *hashmap, const char *key) {
 void destroyHashMap(HashMap *hashmap) {
     for(int i = 0; i < hashmap->size; i++){
         Entry *entry = hashmap->entries[i];
-        if(hashmap->entries[i] != NULL) {
-            free(entry->value);
-            free(entry->key);
-            free(entry);
+        if(entry != NULL) {
+//            free(entry->key);
+//            free(entry->value);
         }
     }
+    //free(hashmap->entries);
 }
 
 #endif //PORTMANAGER_MAP_H

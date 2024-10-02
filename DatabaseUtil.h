@@ -9,12 +9,6 @@
 #include <mariadb/mysql.h>
 #include <stdio.h>
 
-#define host        "127.0.0.1"
-#define user        "testar"
-#define password    "pass"
-#define database    "PORTS"
-#define port        3306
-
 struct Response_sql;
 MYSQL* getConnection();
 struct Response_sql sendCommandHasResponse(MYSQL*, char*);
