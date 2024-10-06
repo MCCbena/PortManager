@@ -150,17 +150,15 @@ struct BodyObject rootFileReader(char* path){
 char* detectionContentType(char* path){
     char* file_name = strdup(path);
     char* extension;
-    char* temp;
 
     //ファイル名を特定
     while (1){
-        temp = strstr(file_name+1, "/");
+        char* temp = strstr(file_name+1, "/");
         if(temp == NULL){
             break;
         }
         file_name = strdup(temp);
         //メモリ開放
-        free(temp);
     }
     //拡張子を特定
     extension = strstr(file_name+1, ".");
@@ -397,7 +395,7 @@ int rule(struct Response response, int wsock, int rsock){
         easySender("HTTP/1.1 200 OK", NULL, html, content_type, wsock);
 
         destroyBodyObject(&html);
-        free(content_type);
+        //free(content_type);
         return 200;
     }else {
         //ファイルが存在しない場合、エラー内容を選定
