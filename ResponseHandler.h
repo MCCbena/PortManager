@@ -59,7 +59,7 @@ struct Response getResponse(char* response_row, HashMap hashMap){
         char method[8];
         methods(i, method);
         index_start = strstr(response_row, method);
-        if(index_start != NULL && method[0] == 0){
+        if(index_start != NULL || method[0] == 0){
             memcpy(response.method, method, 8);
             index_start += strlen(method)+1; //絶対にNULLにはならない
             break;
