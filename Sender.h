@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <sys/socket.h>
 #include <stdio.h>
+#include <signal.h>
 
 struct BodyObject;
 
@@ -18,6 +19,7 @@ char** makeDataObject(int, int);
 int byteSize(const char*);
 void destroyBodyObject(struct BodyObject*);
 struct BodyObject makeBodyObject(char*, unsigned int);
+void errorHandler(int);
 
 struct BodyObject{
     char* content;
@@ -70,6 +72,9 @@ void easySender(char* method, char** append , struct BodyObject bodyObject, char
     char* length =      (char*) malloc(32);
     char* content_type =(char*) malloc(128);
 
+    //エラーハンドラーの登録
+    signal(SIGPIPE, errorHandler);
+
     //メソッドの作成
     sprintf(send_method, "%s\r\n", method);
     //Content-Typeの作成
@@ -82,7 +87,7 @@ void easySender(char* method, char** append , struct BodyObject bodyObject, char
     //ヘッダ送信
     send(wsock, send_method, byteSize(send_method), 0);
     send(wsock, content_type, byteSize(content_type), 0);
-    if(bodyObject.content!=NULL)send(wsock, length, byteSize(length), 0);
+    if(bodyObject.content!=NULL) send(wsock, length, byteSize(length), 0);
     //追加ヘッダを送信
     if(append!=NULL){
         int i = 0;
@@ -97,7 +102,9 @@ void easySender(char* method, char** append , struct BodyObject bodyObject, char
     }
     send(wsock, "\r\n", 2, 0); // ヘッダとボディを区切る空行
 
+
     if (bodyObject.content!=NULL)send(wsock, bodyObject.content, bodyObject.size, 0);
+
 
     //メモリ開放
     free(send_method);
@@ -112,6 +119,10 @@ int byteSize(const char* content){
         i++;
     }
     return i;
+}
+
+void errorHandler(int signal){
+    printf("exception signal: %d\n", signal);
 }
 
 #endif //PORTMANAGER_SENDER_H

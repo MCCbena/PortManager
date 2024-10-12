@@ -34,7 +34,7 @@ void methods(int id, char* dest){
     memcpy(dest, method[id], 8);
 }
 
-struct Response getResponse(char*);
+struct Response getResponse(char*, HashMap);
 int rule(struct Response, int, int);
 int handler(struct Response, int, int);
 struct BodyObject rootFileReader(char*);
@@ -47,9 +47,9 @@ struct Response{
     char* body;
 };
 
-struct Response getResponse(char* response_row){
+struct Response getResponse(char* response_row, HashMap hashMap){
     struct Response response;
-    response.header = *newHashMap(1024);
+    response.header = hashMap;
 
     char* index_start; //最初の文字が格納されたメモリアドレス
     char* index_end; //最後が格納されたメモリアドレス
@@ -59,7 +59,7 @@ struct Response getResponse(char* response_row){
         char method[8];
         methods(i, method);
         index_start = strstr(response_row, method);
-        if(index_start != NULL || method[0] == 0){
+        if(index_start != NULL && method[0] == 0){
             memcpy(response.method, method, 8);
             index_start += strlen(method)+1; //絶対にNULLにはならない
             break;
@@ -396,6 +396,7 @@ int rule(struct Response response, int wsock, int rsock){
 
         destroyBodyObject(&html);
         //free(content_type);
+
         return 200;
     }else {
         //ファイルが存在しない場合、エラー内容を選定
@@ -433,7 +434,6 @@ int handler(struct Response response, int wsock, int rsock){
     free(text);
     free(method);
 
-    destroyHashMap(&response.header);
     return 0;
 }
 

@@ -48,13 +48,20 @@ void insertToHashMap(const HashMap *hashmap, const char *key,
 
     // check if key already exists
     Entry *entry = hashmap->entries[index];
-    if (entry != NULL) {
-        return;
+    while (entry != NULL) {
+        if (strcmp(entry->key, key) == 0) {
+            free(entry->value);
+            entry->value = strdup(value);
+            return;
+        }
+        entry = entry->next;
     }
+
     // create new entry
     entry = malloc(sizeof(Entry));
     entry->key = strdup(key);
     entry->value = strdup(value);
+    entry->next = hashmap->entries[index];  // for chaining
     hashmap->entries[index] = entry;
 }
 
@@ -62,23 +69,62 @@ char *getValueFromHashMap(const HashMap *hashmap, const char *key) {
     unsigned int index = hash(key, hashmap->size);
 
     Entry *entry = hashmap->entries[index];
-    // check if key exists
-    if (entry == NULL) {
-        return NULL;
-    }
-
-    return entry->value;
-}
-
-void destroyHashMap(HashMap *hashmap) {
-    for(int i = 0; i < hashmap->size; i++){
-        Entry *entry = hashmap->entries[i];
-        if(entry != NULL) {
-//            free(entry->key);
-//            free(entry->value);
+    while (entry != NULL) {
+        if (strcmp(entry->key, key) == 0) {
+            return entry->value;
         }
+        entry = entry->next;
     }
-    //free(hashmap->entries);
+
+    return NULL;
 }
+
+void freeEntry(Entry *entry) {
+    while (entry != NULL) {
+        Entry *next = entry->next;
+        free(entry->key);
+        free(entry->value);
+        free(entry);
+        entry = next;
+    }
+}
+
+void freeHashMap(HashMap *hashmap) {
+    for (int i = 0; i < hashmap->size; i++) {
+        freeEntry(hashmap->entries[i]);
+    }
+    free(hashmap->entries);
+    //free(hashmap);
+}
+
+int removeFromHashMap(const HashMap *hashmap, const char *key) {
+    unsigned int index = hash(key, hashmap->size);
+    Entry *entry = hashmap->entries[index];
+
+    // find the entry and its predecessor
+    Entry *pred = NULL;
+    while (entry != NULL) {
+        if (strcmp(entry->key, key) == 0) {
+            break;
+        }
+        pred = entry;
+        entry = entry->next;
+    }
+
+    if (entry == NULL) return -1;
+    if (pred == NULL) {  // entry is the first in the list
+        hashmap->entries[index] = entry->next;
+    } else {  // entry is not the first in the list
+        pred->next = entry->next;
+    }
+
+    free(entry->key);
+    free(entry->value);
+    free(entry);
+
+    return 0;
+}
+
+
 
 #endif //PORTMANAGER_MAP_H

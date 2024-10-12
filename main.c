@@ -2,12 +2,24 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "ResponseHandler.h"
+#include <signal.h>
+
+int rsock;
+void close(int signal){
+    shutdown(rsock, SHUT_RDWR);
+    exit(0);
+}
 
 int main(void) {
-    int rsock, wsock;
+
+    int wsock;
     struct sockaddr_in addr, client;
     int len;
     int ret;
+
+    //interruptのハンドラーを設定
+    signal(SIGTERM, close);
+    signal(SIGINT, close);
 
     //ソケットを展開
     rsock = socket(AF_INET, SOCK_STREAM, 0);
@@ -40,17 +52,16 @@ int main(void) {
         //レスポンスの格納
         char *response_get = calloc(1, 1024);
         recv(wsock, response_get, 1024, 0);
-        struct Response response = getResponse(response_get);
+        HashMap hashMap = *newHashMap(1024);
+        struct Response response = getResponse(response_get, hashMap);
         handler(response, wsock, rsock);
 
         free(response_get);
         free(response.body);
-        destroyHashMap(&response.header);
+        freeHashMap(&hashMap);
 
         /* close TCP session */
         shutdown(wsock, SHUT_RDWR);
         //exit(0);
     }
-    shutdown(rsock, SHUT_RDWR);
-    return 0;
 }
