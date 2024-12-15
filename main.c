@@ -7,8 +7,10 @@
 int rsock;
 void close(int signal){
     printf("例外発生 %d\n", signal);
-    shutdown(rsock, SHUT_RDWR);
-    exit(0);
+    if(signal == 2){
+        shutdown(rsock, SHUT_RDWR);
+        exit(0);
+    }
 }
 
 int main(int argc, char *argv[]) {

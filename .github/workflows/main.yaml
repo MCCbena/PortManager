@@ -1,6 +1,9 @@
 name: PortManager Compiler
 run-name: PortManager compiling
-on: [push]
+on:
+  push:
+    branches:
+      - master
 jobs:
   PortManager-Compile:
     runs-on: ubuntu-24.04
