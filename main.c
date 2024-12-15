@@ -6,6 +6,7 @@
 
 int rsock;
 void close(int signal){
+    printf("例外発生 %d\n", signal);
     shutdown(rsock, SHUT_RDWR);
     exit(0);
 }
