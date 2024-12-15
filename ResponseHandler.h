@@ -15,8 +15,12 @@
 #include "Sender.h"
 #include "DatabaseUtil.h"
 
-#define ROOT "/home/shuta/CLionProjects/PortManager/www"
-
+char* ROOT;
+char* host;
+char* user;
+char* password;
+char* db;
+int port;
 
 //メソッドの定義
 void methods(int id, char* dest){
@@ -59,7 +63,7 @@ struct Response getResponse(char* response_row, HashMap hashMap){
         char method[8];
         methods(i, method);
         index_start = strstr(response_row, method);
-        if(index_start != NULL || method[0] == 0){
+        if(index_start != NULL && method[0] != 0){
             memcpy(response.method, method, 8);
             index_start += strlen(method)+1; //絶対にNULLにはならない
             break;
@@ -216,7 +220,7 @@ int rule(struct Response response, int wsock, int rsock){
             if(strcmp(key, "serverID")==0){
                 const char* table = json_object_get_string(val);
                 //SQLとの接続を確立
-                MYSQL *conn = getConnection();
+                MYSQL *conn = getConnection(host, user, password, db, port);
                 //コマンドを作成・送信する
                 char* command = calloc(256, 1);
                 sprintf(command, "SELECT * FROM %s;", table);
@@ -277,7 +281,7 @@ int rule(struct Response response, int wsock, int rsock){
         const char *protocol;
         json_bool   change;
 
-        MYSQL *conn = getConnection();
+        MYSQL *conn = getConnection(host, user, password, db, port);
         char *command1 = calloc(256, 1);
         char *command2 = calloc(256, 1);
 
@@ -360,7 +364,7 @@ int rule(struct Response response, int wsock, int rsock){
         json_object_object_get_ex(jsonObject, "name",   &json_name);
 
         char* command = calloc(256, 1);
-        MYSQL *conn = getConnection();
+        MYSQL *conn = getConnection(host, user, password, db, port);
 
         server  = json_object_get_string(json_server);
         name    = json_object_get_string(json_name);

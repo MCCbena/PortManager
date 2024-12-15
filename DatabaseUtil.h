@@ -19,16 +19,16 @@ struct Response_sql{
     MYSQL_RES *response;
 };
 
-MYSQL* getConnection(){
+MYSQL* getConnection(char* host, char* user, char* password, char* db, int port){
     MYSQL* conn = NULL;
     if(!(conn = mysql_init(0))) return NULL;
     if(!mysql_real_connect(conn,
-                          "127.0.0.1",
-                          "portmanager",
-                          "v.pizv(MYQb9(abKQzM_",
-                          "PORTS",
-                          3306,
-                          NULL,0))
+                           host,
+                           user,
+                           password,
+                           db,
+                           port,
+                           NULL,0))
         return NULL;
     return conn;
 }

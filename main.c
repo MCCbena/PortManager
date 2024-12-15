@@ -10,12 +10,28 @@ void close(int signal){
     exit(0);
 }
 
-int main(void) {
+int main(int argc, char *argv[]) {
 
     int wsock;
     struct sockaddr_in addr, client;
     int len;
     int ret;
+
+    for(int i = 0; i < argc; i++){
+        printf("%s\n", argv[i]);
+    }
+
+    if(argc!=7){
+        printf("引数の数が合いません。（必要:%d, 指定された数:%d）\n", 6, argc);
+        exit(1);
+    }
+
+    host = argv[1];
+    user = argv[2];
+    password = argv[3];
+    db = argv[4];
+    port = atoi(argv[5]);
+    ROOT = argv[6];
 
     //interruptのハンドラーを設定
     signal(SIGTERM, close);
