@@ -27,7 +27,8 @@ jobs:
 
       - name: create file
         run: |
-          tar -zcvf release.tar.gz www build/PortManager
+          mv build/PortManager ./PortManager
+          tar -zcvf release.tar.gz www PortManager
       - name: Create tag
         id: release-tag
         run: |
